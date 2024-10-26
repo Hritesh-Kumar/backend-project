@@ -1,0 +1,16 @@
+{
+  "name": "backendproject-1",
+  "version": "1.0.0",
+  "description": "a backend tutorial",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "javaScript",
+    "backed",
+    "sonu"
+  ],
+  "author": "Hritesh",
+  "license": "ISC"
+}
