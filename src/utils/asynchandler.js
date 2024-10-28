@@ -1,6 +1,10 @@
 const asyncHandler = (requestHandler) => {
-  Promise.resolve(requestHandler(req, res, next)).catch((err) => next(err));
+  return (req, res, next) => {
+    Promise.resolve(requestHandler(req, res, next)).catch((err) => next(err));
+  };
 };
+
+//!return here is essential to make asyncHandler truly asynchronous and to properly propagate the result or error.
 
 export { asyncHandler };
 
