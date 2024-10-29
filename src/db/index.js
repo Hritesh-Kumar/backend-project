@@ -1,8 +1,5 @@
 import mongoose from "mongoose";
 import { DB_NAME } from "../constants.js";
-import express from "express";
-
-const app = express();
 
 export const DBconnect = async () => {
   try {
@@ -12,6 +9,6 @@ export const DBconnect = async () => {
 
     console.log(`\n CONNECTED: ${ConnectionInstance.connection.host}`);
   } catch (error) {
-    console.log(`ERRORRRRRR:`, error);
+    console.log(`error:`, error);
   }
 };
