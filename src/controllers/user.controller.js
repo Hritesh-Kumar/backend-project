@@ -5,70 +5,74 @@ import { uploadInCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 
 export const registerUser = asyncHandler(async (req, res) => {
-  //Get user details from frontend
-  const { fullName, email, username, password } = req.body;
-  console.log(email);
-  console.log("Request Body:", req.body);
+  try {
+    const { fullName, email, username, password } = req.body;
+    console.log("Starting user registration process...");
+    console.log("Request Body:", {
+      fullName,
+      email,
+      username,
+      password: "****",
+    });
 
-  //validation - not empty
-  if (
-    [fullName, username, password, email].some((field) => field?.trim() === "")
-  ) {
-    throw new ApiError(400, "fields missing here");
+    if ([fullName, username, password, email].some((field) => !field?.trim())) {
+      throw new ApiError(400, "All fields are required");
+    }
+
+    console.log("Checking for existing user...");
+    const existedUser = await User.findOne({
+      $or: [{ username }, { email }],
+    });
+
+    if (existedUser) {
+      throw new ApiError(409, "Username or email already exists");
+    }
+
+    console.log("Checking avatar file...");
+    if (!req.files?.avatar?.[0]?.path) {
+      throw new ApiError(400, "Avatar file is required");
+    }
+
+    const avatarLocalPath = req.files.avatar[0].path;
+    const coverLocalPath = req.files?.coverImage?.[0]?.path;
+
+    console.log("Uploading avatar to Cloudinary...");
+    const avatar = await uploadInCloudinary(avatarLocalPath);
+    if (!avatar) {
+      throw new ApiError(400, "Error while uploading avatar");
+    }
+
+    let coverImage;
+    if (coverLocalPath) {
+      console.log("Uploading cover image to Cloudinary...");
+      coverImage = await uploadInCloudinary(coverLocalPath);
+    }
+
+    console.log("Creating user in database...");
+    const user = await User.create({
+      fullName,
+      avatar: avatar.url,
+      coverImage: coverImage?.url || "",
+      email,
+      password,
+      username,
+    });
+
+    console.log("Fetching created user...");
+    const createdUser = await User.findById(user._id).select(
+      "-password -refreshToken"
+    );
+
+    if (!createdUser) {
+      throw new ApiError(500, "Something went wrong while registering user");
+    }
+
+    console.log("User registration successful!");
+    return res
+      .status(201)
+      .json(new ApiResponse(201, createdUser, "User registered successfully"));
+  } catch (error) {
+    console.error("Error in user registration:", error);
+    throw error; // This will be caught by asyncHandler
   }
-
-  //check if already exists (username, Email)
-  const existedUser = await User.findOne({
-    $or: [{ username }, { email }],
-  });
-
-  console.log("Existed User:", existedUser);
-
-  if (existedUser) {
-    throw new ApiError(409, "username or email already existed");
-  }
-
-  //check for images, check for avatar
-  const avatarLocalPath = req.files?.avatar[0]?.path;
-  const coverLocalPath = req.files?.coverImage[0]?.path;
-
-  if (!avatarLocalPath) {
-    throw new ApiError(400, "AVATAR upload nai hai");
-  }
-
-  console.log("Avatar Path:", avatarLocalPath);
-  console.log("Cover Image Path:", coverLocalPath);
-
-  //upload them to cloudinary (avatar)
-  const avatar = await uploadInCloudinary(avatarLocalPath);
-  const coverImage = await uploadInCloudinary(coverLocalPath);
-
-  if (!avatar) {
-    throw new ApiError(400, "AVATAR upload nai hai");
-  }
-
-  //create user object (create entry in db)
-  const user = await User.create({
-    fullName,
-    avatar: avatar.url,
-    coverImage: coverImage?.url || "",
-    email,
-    password,
-    username,
-  });
-
-  //remove password & refresh token from response
-  const createdUser = await User.findById(user._id).select(
-    "-password -refreshToken"
-  );
-
-  //check for user creation
-  if (!createdUser) {
-    throw new ApiError(500, "Something went wrong while registering User");
-  }
-
-  //return response or send error
-  return res
-    .status(201)
-    .json(new ApiResponse(200, createdUser, "user registered successfully"));
 });

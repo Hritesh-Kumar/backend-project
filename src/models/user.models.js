@@ -9,7 +9,7 @@ const userSchema = new Schema(
       required: true,
       lowercase: true,
       trim: true,
-      index: true, //! makes it searchable but adds load to the server
+      index: true,
     },
     email: {
       type: String,
@@ -25,7 +25,7 @@ const userSchema = new Schema(
       index: true,
     },
     avatar: {
-      type: String, //couldinary url
+      type: String,
       required: true,
     },
     coverImage: {
@@ -39,7 +39,7 @@ const userSchema = new Schema(
     ],
     password: {
       type: String,
-      required: [true, "password is required"],
+      required: [true, "Password is required"],
     },
     refreshToken: {
       type: String,
@@ -48,16 +48,20 @@ const userSchema = new Schema(
   { timestamps: true }
 );
 
-userSchema.pre("save", function (next) {
+// Fix: Correctly implement the password hashing
+userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
 
-  this.password = bcrypt.hash(this.password, 10);
+  try {
+    this.password = await bcrypt.hash(this.password, 10);
+    next();
+  } catch (error) {
+    next(error);
+  }
 });
 
-//bcrypt method used here(.compare)
 userSchema.methods.isPasswordCorrect = async function (password) {
   return await bcrypt.compare(password, this.password);
-  //! encryption takes time (async, await)
 };
 
 userSchema.methods.generateAccessToken = function () {
@@ -74,6 +78,7 @@ userSchema.methods.generateAccessToken = function () {
     }
   );
 };
+
 userSchema.methods.generateRefreshToken = function () {
   return jwt.sign(
     {
