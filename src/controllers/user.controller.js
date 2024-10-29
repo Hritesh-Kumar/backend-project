@@ -41,26 +41,26 @@ export const registerUser = asyncHandler(async (req, res) => {
 
   //upload them to cloudinary (avatar)
   const avatar = await uploadInCloudinary(avatarLocalPath);
-  const coverImage = uploadInCloudinary(coverLocalPath);
+  const coverImage = await uploadInCloudinary(coverLocalPath);
 
   if (!avatar) {
     throw new ApiError(400, "AVATAR upload nai hai");
   }
 
   //create user object (create entry in db)
-  const user = User.create({
+  const user = await User.create({
     fullName,
     avatar: avatar.url,
     coverImage: coverImage?.url || "",
     email,
     password,
-    username: username.toLowerCase(),
+    username,
   });
 
   //remove password & refresh token from response
-  const createdUser = await AuthenticatorAssertionResponse.findById(
-    user._id
-  ).select("-password -refreshToken");
+  const createdUser = await User.findById(user._id).select(
+    "-password -refreshToken"
+  );
 
   //check for user creation
   if (!createdUser) {
