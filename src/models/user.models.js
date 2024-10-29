@@ -1,6 +1,6 @@
 import mongoose, { Schema } from "mongoose";
-import { bcrypt } from "bcrypt";
-import { jwt } from "jsonwebtoken";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 
 const userSchema = new Schema(
   {
@@ -29,7 +29,7 @@ const userSchema = new Schema(
       required: true,
     },
     coverImage: {
-      type: string,
+      type: String,
     },
     watchHistory: [
       {
@@ -38,11 +38,11 @@ const userSchema = new Schema(
       },
     ],
     password: {
-      type: string,
+      type: String,
       required: [true, "password is required"],
     },
     refreshToken: {
-      type: string,
+      type: String,
     },
   },
   { timestamps: true }
@@ -86,4 +86,4 @@ userSchema.methods.generateRefreshToken = function () {
   );
 };
 
-export const User = Schema.model("User", userSchema);
+export const User = mongoose.model("User", userSchema);
