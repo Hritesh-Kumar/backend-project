@@ -48,7 +48,7 @@ const userSchema = new Schema(
   { timestamps: true }
 );
 
-// Fix: Correctly implement the password hashing
+//! Fix: Correctly implement the password hashing took 1 whole day to find this
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
 
