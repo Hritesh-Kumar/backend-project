@@ -98,70 +98,106 @@ const registerUser = asyncHandler(async (req, res) => {
 
 const generateAccessAndRefreshToken = async (userId) => {
   try {
-    const user = User.findById(userId);
+    console.log("Yahan se token generation start hua hai:", userId);
 
-    const accessToken = user.generateRefreshToken();
-    const refreshToken = user.generateAccessToken();
+    // Bug fix 1: Added 'await' to findById
+    const user = await User.findById(userId);
+    console.log("user khoj ke mil gaya", user ? "Yes" : "No");
 
+    if (!user) {
+      console.log("No user found for ID:", userId);
+      throw new ApiError(
+        404,
+        "User not found (generateAccessAndRefreshToken):"
+      );
+    }
+
+    // Bug fix 2: Methods were swapped - fixed the method names
+    // Bug fix 3: Added 'await' if these are async operations
+    console.log("Generating access token...");
+    const accessToken = await user.generateAccessToken();
+
+    console.log("Generating refresh token...");
+    const refreshToken = await user.generateRefreshToken();
+
+    console.log("Tokens generated successfully");
+
+    // Bug fix 4: Added 'await' to save operation
     user.refreshToken = refreshToken;
-    user.save({ validateBeforeSave: false });
+    console.log("Saving refresh token to user document...");
+    await user.save({ validateBeforeSave: false });
+    console.log("Refresh token saved successfully");
 
     return { accessToken, refreshToken };
-    //
   } catch (error) {
-    //
-    throw new ApiError(
-      500,
-      "Something went wrong while generating access and refresh token"
-    );
+    console.error("Token generation error:", {
+      message: error.message,
+      stack: error.stack,
+    });
+
+    throw new ApiError(500, `Token generation failed: ${error.message}`);
   }
 };
 
 //=======================================================
 
 const loginUser = asyncHandler(async (req, res) => {
+  //!
   // req body -> data
   // username  or email
   // find the user
   // password check
   // access and refresh token
   // send cookie
+  //!
 
   try {
+    console.log("Login attempt started");
     const { email, username, password } = req.body;
+    console.log("Request body:", { email, username, password: "****" });
 
-    if (!username || !email) {
+    if (!username && !email) {
+      console.log("Validation failed: No username or email provided");
       throw new ApiError(400, "username or email required");
     }
 
-    //! here we found the user that we were looking for and stored inside const user
-    const user = User.findOne({
+    // Major bug fix: Added 'await' here
+    const user = await User.findOne({
       $or: [{ username }, { email }],
     });
+    console.log("User search result:", user ? "User found" : "User not found");
 
     if (!user) {
+      console.log("User not found in database");
       throw new ApiError(404, "user doesn't exists");
     }
 
-    const isPasswordValid = user.isPasswordCorrect(password);
+    // Major bug fix: Added 'await' here
+    const isPasswordValid = await user.isPasswordCorrect(password);
+    console.log("Password validation:", isPasswordValid ? "Success" : "Failed");
 
     if (!isPasswordValid) {
-      throw new ApiError(401, "bhai password galat hai");
+      console.log("Invalid password attempt");
+      throw new ApiError(401, "Invalid password");
     }
 
+    console.log("Generating tokens for user ID:", user._id);
     const { accessToken, refreshToken } = await generateAccessAndRefreshToken(
       user._id
     );
+    console.log("Tokens generated successfully");
 
     const loggedInUser = await User.findById(user._id).select(
       "-password -refreshToken"
     );
+    console.log("Fetched user data without sensitive information");
 
     const options = {
       httpOnly: true,
       secure: true,
     };
 
+    console.log("Sending successful login response");
     return res
       .status(200)
       .cookie("accessToken", accessToken, options)
@@ -178,10 +214,37 @@ const loginUser = asyncHandler(async (req, res) => {
         )
       );
   } catch (error) {
-    throw new ApiError(500, "loginUser not working");
+    console.error("Login error:", error);
+    // Modified to include the original error message
+    throw new ApiError(500, `Login failed: ${error.message}`);
   }
 });
 
-const logoutUser = asyncHandler(async (req, res) => {});
+//=======================================================
 
-export { registerUser };
+const logoutUser = asyncHandler(async (req, res) => {
+  await User.findByIdAndUpdate(
+    req.user._id,
+    {
+      $set: {
+        refreshToken: undefined,
+      },
+    },
+    {
+      new: true,
+    }
+  );
+
+  const options = {
+    httpOnly: true,
+    secure: true,
+  };
+
+  return res
+    .status(200)
+    .clearCookie("accessToken", options)
+    .clearCookie("refreshToken", options)
+    .json(new ApiResponse(200, "user has been logged Out"));
+});
+
+export { registerUser, loginUser, logoutUser };
