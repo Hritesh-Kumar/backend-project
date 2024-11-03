@@ -292,4 +292,126 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     );
 });
 
-export { registerUser, loginUser, logoutUser, refreshAccessToken };
+//=======================================================
+
+const changeCurrentPassword = asyncHandler(async (req, res) => {
+  console.log("1. Password change request received:", {
+    userId: req.user?._id,
+    hasOldPassword: !!req.body.oldPassword,
+    hasNewPassword: !!req.body.newPassword,
+
+    //! this is a new thing that i learned !! what it does is it gives boolean value of the present value so instead Heit@123 it will show true if old password is there.
+  });
+
+  const { oldPassword, newPassword } = req.body;
+
+  const user = await User.findById(req.user?._id);
+  console.log("2. User found in database:", {
+    userExists: !!user,
+    userId: user?._id,
+  });
+
+  if (!user) {
+    console.log("Error: User not found in database");
+    throw new ApiError(400, "User not found");
+  }
+
+  const isPasswordCorrect = user.isPasswordCorrect(oldPassword);
+  console.log("3. Password verification result:", {
+    isPasswordCorrect,
+    oldPasswordProvided: !!oldPassword,
+  });
+
+  if (!isPasswordCorrect) {
+    console.log("Error: Invalid old password provided");
+    throw new ApiError(400, "Invalid password");
+  }
+
+  user.password = newPassword;
+  console.log("4. New password assigned to user object");
+
+  try {
+    await user.save({ validateBeforeSave: false });
+    console.log("5. User successfully saved with new password");
+  } catch (error) {
+    console.error("Error saving user:", error);
+    throw new ApiError(500, "Error while saving new password");
+  }
+
+  console.log("6. Password change completed successfully");
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "successfully password changed"));
+});
+
+//=======================================================
+
+const updateUserAvatar = asyncHandler(async (req, res) => {
+  const avatarLocalPath = req.file?.path;
+
+  if (!avatarLocalPath) {
+    throw new ApiError(400, "avatar file missing");
+  }
+
+  const avatar = await uploadInCloudinary(avatarLocalPath);
+
+  if (!avatar.url) {
+    throw new ApiError(400, "avatar url missing");
+  }
+
+  await User.findByIdAndUpdate(
+    req.body?._id,
+    {
+      $set: {
+        avatar: avatar.url,
+      },
+    },
+    {
+      new: true,
+    }
+  ).select("-password");
+
+  return res.status(200).json(new ApiResponse(200, user, "avatar updated"));
+});
+
+//=======================================================
+
+const updateCoverImage = asyncHandler(async (req, res) => {
+  const coverImageLocalPath = req.file?.path;
+
+  if (!coverImageLocalPath) {
+    throw new ApiError(400, "avatar file missing");
+  }
+
+  const coverImage = await uploadInCloudinary(coverImageLocalPath);
+
+  if (!coverImage.url) {
+    throw new ApiError(400, "coverImage url missing");
+  }
+
+  await User.findByIdAndUpdate(
+    req.body?._id,
+    {
+      $set: {
+        coverImage: coverImage.url,
+      },
+    },
+    {
+      new: true,
+    }
+  ).select("-password");
+
+  return res.status(200).json(new ApiResponse(200, user, "coverImage updated"));
+});
+
+//=======================================================
+
+export {
+  registerUser,
+  loginUser,
+  logoutUser,
+  refreshAccessToken,
+  changeCurrentPassword,
+  updateCoverImage,
+  updateUserAvatar,
+};
